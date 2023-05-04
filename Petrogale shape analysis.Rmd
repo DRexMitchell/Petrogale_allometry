@@ -1,0 +1,81 @@
+---
+title: "Petrogale shape analysis"
+author: "D. Rex Mitchell"
+date: "2023-05-03"
+output: html_document
+---
+
+IMPORT PACKAGES
+```{r}
+library(geomorph)
+library(landvR)
+```
+
+IMPORT SHAPE DATA
+```{r}
+load("Petrogale_allshapedata.rda")
+```
+
+PERFORM PROCRUSTES SUPERIMPOSITION AND REMOVE ASYMMETRY VARIATION
+```{r}
+ind <- dimnames(alldata)[[3]]
+pet_sym <- bilat.symmetry(alldata, ind=ind, land.pairs = sym, object.sym=T, curves=slide)
+```
+PERFORM STANDARD GPA TO OBTAIN CRANIAL (CENTROID) SIZES
+```{r}
+gpa <- gpagen(alldata)
+size <- gpa$Csize
+```
+
+TEST ALLOMETRY USING OLS MODEL
+```{r}
+allom <- procD.lm(pet_sym$symm.shape~log(size), iter=999); summary(allom)
+allom_plot <- plot(allom, type = "regression", predictor = log(size), 
+                   reg.type = "RegScore", pch = symbols, bg=cols[species], 
+                   xlab = "log(centroid size)", ylab = "Regression score", cex=2)
+```
+
+USE 'SHAPE.PREDICTOR' TO VISUALLY EXAMINE PREDICTED SHAPE CHANGES THAT OCCUR WITH INCREASED CRANIAL SIZE
+```{r}
+preds <- shape.predictor(allom$GM$fitted, x = allom_plot$PredLine, 
+                         predmin = min(allom_plot$PredLine), 
+                         predmax = max(allom_plot$PredLine))
+differences <- coordinates.difference(coordinates = preds$predmax,
+                                      reference = preds$predmin, type = "spherical")
+procrustes.var.plot(preds$predmax, preds$predmin, col = heat.colors, col.val = differences[[1]][1:150], magnitude = 1, pt.size = 1)
+```
+
+PERFORM PRINCIPAL COMPONENT ANALYSIS AND PLOT PC1 VS PC2
+```{r}
+PCA <- gm.prcomp(pet_sym$symm.shape)
+plot(PCA$x[,2]~PCA$x[,1], pch=symbols, cex=size/200, axes.linetype=NA, bg=cols[species], asp=1, xlab = paste("PC1", "(", (signif(PCA$d[1]/sum(PCA$d)*100, digits=4)), "%)", sep=""), ylab = paste("PC2", "(", (signif(PCA$d[2]/sum(PCA$d)*100, digits=3)), "%)", sep=""))
+```
+
+TEST FOR SIZE CORRELATIONS FOR MAJOR COMPONENTS OF SHAPE
+```{r}
+PC1cor <- lm(PCA$x[,1]~log(gpa$Csize)); print(summary(PC1cor)) # SIGNIFICANT
+PC2cor <- lm(PCA$x[,2]~log(gpa$Csize)); print(summary(PC2cor)) # SIGNIFICANT
+PC3cor <- lm(PCA$x[,3]~log(gpa$Csize)); print(summary(PC3cor)) # SIGNIFICANT
+PC4cor <- lm(PCA$x[,4]~log(gpa$Csize)); print(summary(PC4cor)) # NOT SIGNIFICANT
+```
+
+PLOT HEATMAPS OF SHAPE DIFFERENCES ALONG PC1
+```{r}
+differences <- coordinates.difference(coordinates = PCA$shapes$shapes.comp1$max,
+                                      reference = PCA$shapes$shapes.comp1$min, type = "spherical")
+procrustes.var.plot(PCA$shapes$shapes.comp1$min, PCA$shapes$shapes.comp1$max, col = heat.colors, col.val = differences[[1]][1:150], magnitude = 1, pt.size = 1)
+```
+
+PLOT HEATMAPS OF SHAPE DIFFERENCES ALONG PC2
+```{r}
+differences <- coordinates.difference(coordinates = PCA$shapes$shapes.comp2$max,
+                                      reference = PCA$shapes$shapes.comp2$min, type = "spherical")
+procrustes.var.plot(PCA$shapes$shapes.comp2$min, PCA$shapes$shapes.comp2$max, col = heat.colors, col.val = differences[[1]][1:150], magnitude = 1, pt.size = 1)
+```
+
+PLOT HEATMAPS OF SHAPE DIFFERENCES ALONG PC3
+```{r}
+differences <- coordinates.difference(coordinates = PCA$shapes$shapes.comp3$max,
+                                      reference = PCA$shapes$shapes.comp3$min, type = "spherical")
+procrustes.var.plot(PCA$shapes$shapes.comp3$min, PCA$shapes$shapes.comp3$max, col = heat.colors, col.val = differences[[1]][1:150], magnitude = 1, pt.size = 1)
+```

@@ -1,0 +1,107 @@
+---
+title: "Petrogale dental tests"
+author: "D. Rex Mitchell"
+date: "2023-05-04"
+output: html_document
+---
+IMPORT PACKAGES
+```{r}
+library(geomorph)
+library(FSA)
+library(ggplot2)
+```
+
+LOAD DATA
+```{r}
+load("Petrogale_dental_data.rda")
+```
+
+TESTING
+PREMOLAR TESTS
+
+REMOVE SPECIMENS WITH NO PREMOLAR DATA AND GENERATE AN INDEX OF RELATIVE PREMOLAR SIZE
+```{r}
+n <- which(is.na(p3data))
+size_p3 <- size[-n]
+p3 <- p3data[-n]
+sp <- species[-n]
+sp <- droplevels(sp)
+p3rat <- p3/size_p3
+```
+
+PERFORM PAIRWISE COMPARISONS BETWEEN ALL SPECIES
+```{r}
+comp <- procD.lm(p3rat~sp, iter=999); summary(comp)
+PW1 <- pairwise(comp, groups = sp)
+summary(PW1)
+```
+
+SUMMARY STATISTICS OF ALL DATA
+```{r}
+Sum = Summarize(p3rat~sp)
+Sum$se = Sum$sd / sqrt(Sum$n)
+pd = position_dodge(1) 
+```
+
+PLOT SPECIES MEANS
+```{r}
+p <- ggplot(Sum, aes(x = sp, y = mean)) +
+  geom_bar(stat     = "identity",
+           color    = "grey") +
+  geom_errorbar(aes(ymin  = mean - se,
+                    ymax  = mean + se),
+                width = 0.2,
+                linewidth  = 0.7,
+                position = pd,
+                color = "black"
+  ) + ylim(0.0125, 0.021) + labs(y= "mean P3 size", x = ""); p
+q <- p+theme(axis.text.x = element_text(angle = 90)); q
+q + theme(axis.text.x = element_text(face = "italic")) +
+  ylab("mean relative P3 size")
+```
+
+
+
+MOLAR TESTS
+
+REMOVE SPECIMENS WITH NO MOLAR DATA AND GENERATE AN INDEX OF RELATIVE PREMOLAR SIZE
+```{r}
+m <- which(is.na(m2data))
+size_m2 <- size[-m]
+m2 <- m2data[-m]
+sp <- species[-m]
+m2rat <- m2/size_m2
+```
+
+PERFORM PAIRWISE COMPARISONS BETWEEN ALL SPECIES
+```{r}
+comp <- procD.lm(m2rat~sp, iter=999); summary(comp)
+PW1 <- pairwise(comp, groups = sp)
+summary(PW1)
+```
+
+SUMMARY STATISTICS OF ALL DATA
+```{r}
+Sum = Summarize(m2rat~sp)
+Sum$se = Sum$sd / sqrt(Sum$n)
+pd = position_dodge(1)
+```
+
+PLOT SPECIES MEANS
+```{r}
+p <- ggplot(Sum,                ### The data frame to use.
+            aes(x     = sp,
+                y     = mean)) +
+  geom_bar(stat     = "identity",
+           color    = "grey") +
+  geom_errorbar(aes(ymin  = mean - se,
+                    ymax  = mean + se),
+                width = 0.2,
+                linewidth  = 0.7,
+                position = pd,
+                color = "black"
+  ) +ylim(0.0125, 0.0175) + labs(y= "mean M2 size", x = ""); p
+q <- p+theme(axis.text.x = element_text(angle = 90)); q
+q + theme(axis.text.x = element_text(face = "italic")) +
+  ylab("mean relative M2 size")
+```

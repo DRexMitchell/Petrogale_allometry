@@ -1,0 +1,36 @@
+---
+title: "Petrogale phylogenetic analysis"
+author: "D. Rex Mitchell"
+date: "2023-05-03"
+output: html_document
+---
+
+IMPORT PACKAGES
+```{r}
+library(geomorph)
+library(phytools)
+```
+
+IMPORT DATA
+```{r}
+load("phy_tests.rda")
+```
+
+PERFORM PHYLOGENETIC GENERALISED LEAST SQUARES REGRESSION TO ACCOUNT FOR PHYLOGENETIC RELATEDNESS
+```{r}
+phy <- procD.pgls(meanshape~log(meansize), tree, iter=999);summary(phy)
+```
+
+TEST FOR A PHYLOGENETIC SIGNAL OF CRANIAL SIZE
+```{r}
+ps <- physignal(meansize, tree, iter=999); ps
+```
+
+PLOT SIZE-CALIBRATED PHYLOGENY
+```{r}
+av <- round(meansize, digits=0)
+obj <- contMap(tree, av, legend=FALSE)
+plot(obj)
+map2 <- setMap(obj, invert=T)
+plot(map2, legend=F)
+```

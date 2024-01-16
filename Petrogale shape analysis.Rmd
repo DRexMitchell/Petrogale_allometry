@@ -3,31 +3,34 @@ title: "Petrogale shape analysis"
 author: "D. Rex Mitchell"
 date: "2023-05-03"
 output: html_document
+editor_options: 
+  chunk_output_type: console
 ---
 
-IMPORT PACKAGES
+IMPORT PACKAGES.
 ```{r}
 library(geomorph)
 library(landvR)
 ```
 
-IMPORT SHAPE DATA
+IMPORT SHAPE DATA.
 ```{r}
 load("allometry_tests.rda")
 ```
 
-PERFORM PROCRUSTES SUPERIMPOSITION AND REMOVE ASYMMETRY VARIATION
+PERFORM PROCRUSTES SUPERIMPOSITION AND REMOVE ASYMMETRY VARIATION.
 ```{r}
 ind <- dimnames(alldata)[[3]]
 pet_sym <- bilat.symmetry(alldata, ind=ind, land.pairs = sym, object.sym=T, curves=slide)
 ```
-PERFORM STANDARD GPA TO OBTAIN CRANIAL (CENTROID) SIZES
+
+PERFORM STANDARD GPA TO OBTAIN CRANIAL (CENTROID) SIZES.
 ```{r}
 gpa <- gpagen(alldata)
 size <- gpa$Csize
 ```
 
-TEST ALLOMETRY USING OLS MODEL
+TEST ALLOMETRY USING PROCRUSTES REGRESSION.
 ```{r}
 allom <- procD.lm(pet_sym$symm.shape~log(size), iter=999); summary(allom)
 allom_plot <- plot(allom, type = "regression", predictor = log(size), 
@@ -35,7 +38,45 @@ allom_plot <- plot(allom, type = "regression", predictor = log(size),
                    xlab = "log(centroid size)", ylab = "Regression score", cex=2)
 ```
 
-USE 'SHAPE.PREDICTOR' TO VISUALLY EXAMINE PREDICTED SHAPE CHANGES THAT OCCUR WITH INCREASED CRANIAL SIZE
+PLOT ALLOMETRY WITH INTRASPECIFIC SLOPES.
+```{r}
+plot2 <- plot(allom_plot$RegScore~log(size), xlab = "log(cranial centroid size)", ylab="Shape regression score", method = "RegScore", pch = iconsPCA, bg=colsPCA, cex=2, main="shape~log(cranial centroid size")
+
+col <- c("lightblue","red","red4","purple","red4","purple","purple4","blue","green","lightblue","purple4","orange","turquoise","yellow","lightblue","red","orange")
+
+lm_temp <- NULL
+xcoords <- vector()
+ycoords <- vector ()
+
+# this loop plots regression lines for each species
+for (i in 1: length(levels (speciesnames))){
+  xcoords <- subset(log(size), speciesnames == levels (speciesnames)[i] )
+  ycoords <- subset(allom_plot$RegScore, speciesnames == levels (speciesnames)[i])
+  lm_temp <- lm(ycoords~xcoords)
+  segments(min(xcoords), lm_temp$coefficients[1] + lm_temp$coefficients[2] *min(xcoords), max(xcoords), lm_temp$coefficients[1] + lm_temp$coefficients[2] *max(xcoords), lwd = 4, col= col[i])
+}
+```
+
+TEST ALLOMETRY INTERACTION.
+```{r}
+allomspec <- procD.lm(pet_sym$symm.shape~log(size)*speciesnames, iter=999); summary(allomspec)
+allomspec_plot <- plotAllometry(allomspec, size = size, logsz = TRUE, 
+                       method = "RegScore", pch = iconsPCA, bg=colsPCA, cex=2)
+```
+
+PLOT FULL MODEL WITH INTRASPECIFIC SLOPES.
+```{R}
+plot2 <- plot(allomspec_plot$RegScore~log(size), xlab = "log(cranial centroid size)", ylab="Shape regression score", method = "RegScore", pch = iconsPCA, bg=colsPCA, cex=2, main="shape~log(cranial centroid size)*species")
+
+for (i in 1: length(levels (speciesnames))){
+  xcoords <- subset(log(size), speciesnames == levels (speciesnames)[i] )
+  ycoords <- subset(allomspec_plot$RegScore, speciesnames == levels (speciesnames)[i])
+  lm_temp <- lm(ycoords~xcoords)
+  segments(min(xcoords), lm_temp$coefficients[1] + lm_temp$coefficients[2] *min(xcoords), max(xcoords), lm_temp$coefficients[1] + lm_temp$coefficients[2] *max(xcoords), lwd = 4, col= col[i])
+}
+```
+
+USE 'SHAPE.PREDICTOR' TO VISUALLY EXAMINE PREDICTED SHAPE CHANGES THAT OCCUR WITH INCREASED CRANIAL SIZE.
 ```{r}
 preds <- shape.predictor(allom$GM$fitted, x = allom_plot$PredLine, 
                          predmin = min(allom_plot$PredLine), 
@@ -45,35 +86,68 @@ differences <- coordinates.difference(coordinates = preds$predmax,
 procrustes.var.plot(preds$predmax, preds$predmin, col = heat.colors, col.val = differences[[1]][1:150], magnitude = 1, pt.size = 1)
 ```
 
-PERFORM PRINCIPAL COMPONENT ANALYSIS AND PLOT PC1 VS PC2
+COMPARE ALLOMETRIC TRAJECTORIES ACROSS SPECIES BY CALCULATING ANGLE VECTORS AND SIGNIFICANCE.
+```{r}
+allomspec <- procD.lm(pet_sym$symm.shape~log(size)*speciesnames, iter=999); summary(allomspec)
+pw<-pairwise(allomspec,groups=speciesnames, covariate = log(size))
+pw_sum <- summary(pw)
+angle<-summary(pw,test="VC",angle.type="deg")
+angle$summary.table
+```
+
+TO COMPARE INTRASPECIFIC ALLOMETRIC PREDICTIONS ACROSS SPECIES, USE THE FOLLOWING CODE AND SUBSTITUTE "SPECIES" WITH DESIRED SPECIFIC EPITHET (e.g., "Petrogale_SPECIES" --> "Petrogale_assimilis"). THIS PRODUCES PREDICTED SHAPE CHANGES FOR EACH SPECIES.
+```{r}
+speciesgp <- coords.subset(alldata, speciesnames)
+
+ind <- dimnames(speciesgp$Petrogale_SPECIES)[[3]]
+pet_sym <- bilat.symmetry(speciesgp$Petrogale_SPECIES, ind=ind, land.pairs = sym, object.sym=T, curves=slide)
+
+gpa <- gpagen(speciesgp$Petrogale_SPECIES)
+size <- gpa$Csize
+range(size)
+
+allom <- procD.lm(pet_sym$symm.shape~log(size), iter=999); summary(allom)
+allom_plot <- plot(allom, type = "regression", predictor = log(size), 
+                   reg.type = "RegScore", pch = 22, bg="lightblue", 
+                   xlab = "log(centroid size)", ylab = "Regression score", cex=2)
+
+preds <- shape.predictor(allom$GM$fitted, x = allom_plot$PredLine, 
+                         predmin = min(allom_plot$PredLine), 
+                         predmax = max(allom_plot$PredLine))
+differences <- coordinates.difference(coordinates = preds$predmax,
+                                      reference = preds$predmin, type = "spherical")
+procrustes.var.plot(preds$predmax, preds$predmin, col = heat.colors, col.val = differences[[1]][1:150], magnitude = 2, pt.size = 1)
+```
+
+PERFORM PRINCIPAL COMPONENT ANALYSIS AND PLOT PC1 VS PC2.
 ```{r}
 PCA <- gm.prcomp(pet_sym$symm.shape)
 plot(PCA$x[,2]~PCA$x[,1], pch=iconsPCA, cex=size/200, axes.linetype=NA, bg=colsPCA, asp=1, xlab = paste("PC1", "(", (signif(PCA$d[1]/sum(PCA$d)*100, digits=4)), "%)", sep=""), ylab = paste("PC2", "(", (signif(PCA$d[2]/sum(PCA$d)*100, digits=3)), "%)", sep=""))
 ```
 
-TEST FOR SIZE CORRELATIONS FOR MAJOR COMPONENTS OF SHAPE
+TEST FOR SIZE CORRELATIONS FOR MAJOR COMPONENTS OF SHAPE.
 ```{r}
-PC1cor <- lm(PCA$x[,1]~log(gpa$Csize)); print(summary(PC1cor)) # SIGNIFICANT
-PC2cor <- lm(PCA$x[,2]~log(gpa$Csize)); print(summary(PC2cor)) # SIGNIFICANT
-PC3cor <- lm(PCA$x[,3]~log(gpa$Csize)); print(summary(PC3cor)) # SIGNIFICANT
-PC4cor <- lm(PCA$x[,4]~log(gpa$Csize)); print(summary(PC4cor)) # NOT SIGNIFICANT
+PC1cor <- lm(PCA$x[,1]~log(gpa$Csize)); print(summary(PC1cor))
+PC2cor <- lm(PCA$x[,2]~log(gpa$Csize)); print(summary(PC2cor)) 
+PC3cor <- lm(PCA$x[,3]~log(gpa$Csize)); print(summary(PC3cor)) 
+PC4cor <- lm(PCA$x[,4]~log(gpa$Csize)); print(summary(PC4cor)) 
 ```
 
-PLOT HEATMAPS OF SHAPE DIFFERENCES ALONG PC1
+PLOT HEATMAPS OF SHAPE DIFFERENCES ALONG PC1.
 ```{r}
 differences <- coordinates.difference(coordinates = PCA$shapes$shapes.comp1$max,
                                       reference = PCA$shapes$shapes.comp1$min, type = "spherical")
 procrustes.var.plot(PCA$shapes$shapes.comp1$min, PCA$shapes$shapes.comp1$max, col = heat.colors, col.val = differences[[1]][1:150], magnitude = 1, pt.size = 1)
 ```
 
-PLOT HEATMAPS OF SHAPE DIFFERENCES ALONG PC2
+PLOT HEATMAPS OF SHAPE DIFFERENCES ALONG PC2.
 ```{r}
 differences <- coordinates.difference(coordinates = PCA$shapes$shapes.comp2$max,
                                       reference = PCA$shapes$shapes.comp2$min, type = "spherical")
 procrustes.var.plot(PCA$shapes$shapes.comp2$min, PCA$shapes$shapes.comp2$max, col = heat.colors, col.val = differences[[1]][1:150], magnitude = 1, pt.size = 1)
 ```
 
-PLOT HEATMAPS OF SHAPE DIFFERENCES ALONG PC3
+PLOT HEATMAPS OF SHAPE DIFFERENCES ALONG PC3.
 ```{r}
 differences <- coordinates.difference(coordinates = PCA$shapes$shapes.comp3$max,
                                       reference = PCA$shapes$shapes.comp3$min, type = "spherical")

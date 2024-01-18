@@ -86,11 +86,12 @@ differences <- coordinates.difference(coordinates = preds$predmax,
 procrustes.var.plot(preds$predmax, preds$predmin, col = heat.colors, col.val = differences[[1]][1:150], magnitude = 1, pt.size = 1)
 ```
 
-COMPARE ALLOMETRIC TRAJECTORIES ACROSS SPECIES BY CALCULATING ANGLE VECTORS AND SIGNIFICANCE.
+COMPARE ALLOMETRIC TRAJECTORIES ACROSS SPECIES BY CALCULATING VECTOR SLOPE AND ANGLE DIFFERENCES AND SIGNIFICANCE.
 ```{r}
 allomspec <- procD.lm(pet_sym$symm.shape~log(size)*speciesnames, iter=999); summary(allomspec)
 pw<-pairwise(allomspec,groups=speciesnames, covariate = log(size))
-pw_sum <- summary(pw)
+pw_sum <- summary(pw); pw_sum
+
 angle<-summary(pw,test="VC",angle.type="deg")
 angle$summary.table
 ```
